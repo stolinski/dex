@@ -35,6 +35,28 @@ dex status --json      # Output as JSON`}
   </div>
 
   <div class="command-card">
+    <h3>dex tui</h3>
+    <div class="synopsis">dex tui</div>
+    <p>Open a live, read-only dashboard for the current project's tasks. It is designed for a narrow terminal pane beside your agent chat and updates automatically when Dex task storage changes.</p>
+    <ul>
+      <li><code>j/k</code> or arrow keys — Move between groups and tasks</li>
+      <li>Left/Right — Collapse or expand a group</li>
+      <li>Enter/Escape — Open task details or return</li>
+      <li><code>r</code> — Reload tasks</li>
+      <li><code>q</code> or Ctrl+C — Quit</li>
+    </ul>
+    <p>The TUI requires Bun 1.3 or newer. When launched under a supported Node version, Dex hands the process off to Bun automatically.</p>
+    <Terminal title="Terminal">
+      <Code
+        code={`# Run from any project using Dex
+dex tui`}
+        lang="bash"
+        theme="vitesse-black"
+      />
+    </Terminal>
+  </div>
+
+  <div class="command-card">
     <h3>dex create</h3>
     <div class="synopsis">dex create &lt;name&gt; [--description &lt;details&gt;] [options]</div>
     <p>Create a new task with name and optional description.</p>

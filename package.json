@@ -40,9 +40,11 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@octokit/rest": "^22.0.1",
+    "@opentui/core": "0.5.3",
     "@shortcut/client": "^3.1.0",
     "nanoid": "^5.0.0",
     "smol-toml": "^1.6.0",
+    "string-width": "7.2.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {

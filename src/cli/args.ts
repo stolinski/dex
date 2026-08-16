@@ -29,6 +29,7 @@ export const COMMANDS = [
   "import",
   "doctor",
   "status",
+  "tui",
   "config",
   "help",
   "mcp",

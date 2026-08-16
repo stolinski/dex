@@ -15,6 +15,7 @@ ${colors.bold}COMMANDS:${colors.reset}
   dir --global                     Print global dex config directory
   mcp                              Start MCP server (stdio)
   status                           Show dashboard overview (default)
+  tui                              Open live read-only task dashboard
   create "name" [--description "..."]  Create task
   add                                   Alias for create command
   list, ls                         List all pending tasks (tree view)
@@ -91,6 +92,9 @@ ${colors.bold}EXAMPLES:${colors.reset}
 
   ${colors.dim}# Create task from planning session:${colors.reset}
   dex plan ~/.claude/plans/my-plan.md
+
+  ${colors.dim}# Open the live dashboard in a narrow terminal pane:${colors.reset}
+  dex tui
 
   ${colors.dim}# Other common operations:${colors.reset}
   dex list --json | jq '.[] | .id'

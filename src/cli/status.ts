@@ -4,11 +4,8 @@ import { ASCII_BANNER, createService } from "./utils.js";
 import { colors } from "./colors.js";
 import { getBooleanFlag, parseArgs } from "./args.js";
 import { printGroupedTasks } from "./tree-display.js";
-import {
-  getIncompleteBlockerIds,
-  hasIncompleteChildren,
-  isInProgress,
-} from "../core/task-relationships.js";
+import { getIncompleteBlockerIds } from "../core/task-relationships.js";
+import { buildDashboardModel } from "../core/dashboard-model.js";
 
 // Limits for displayed tasks in each section
 const READY_LIMIT = 5;
@@ -39,60 +36,15 @@ interface StatusData {
  * Calculate status statistics and categorized task lists.
  */
 function calculateStatus(tasks: Task[]): StatusData {
-  const pending = tasks.filter((t) => !t.completed);
-  const completed = tasks.filter((t) => t.completed);
-
-  // Partition pending tasks into in-progress, blocked, and ready
-  const inProgressTasks: Task[] = [];
-  const blockedTasks: Task[] = [];
-  const readyTasks: Task[] = [];
-  for (const task of pending) {
-    const taskInProgress = isInProgress(task);
-    const hasBlockers = getIncompleteBlockerIds(tasks, task).length > 0;
-    const hasChildren = hasIncompleteChildren(tasks, task);
-
-    if (taskInProgress) {
-      // In-progress tasks go to their own section
-      inProgressTasks.push(task);
-    } else if (hasBlockers || hasChildren) {
-      blockedTasks.push(task);
-    } else {
-      readyTasks.push(task);
-    }
-  }
-
-  // Sort in-progress tasks by started_at (most recent first)
-  // All in-progress tasks have started_at set (filtered above via isInProgress)
-  inProgressTasks.sort(
-    (a, b) =>
-      new Date(b.started_at!).getTime() - new Date(a.started_at!).getTime(),
-  );
-
-  // Sort ready tasks by priority
-  readyTasks.sort((a, b) => a.priority - b.priority);
-
-  // Recently completed: sorted by completed_at descending
-  const recentlyCompleted = completed
-    .filter((t) => t.completed_at)
-    .toSorted(
-      (a, b) =>
-        new Date(b.completed_at!).getTime() -
-        new Date(a.completed_at!).getTime(),
-    );
-
+  const model = buildDashboardModel(tasks);
   return {
-    stats: {
-      total: tasks.length,
-      pending: pending.length,
-      completed: completed.length,
-      blocked: blockedTasks.length,
-      ready: readyTasks.length,
-      inProgress: inProgressTasks.length,
-    },
-    inProgressTasks,
-    readyTasks,
-    blockedTasks,
-    recentlyCompleted,
+    stats: model.stats,
+    inProgressTasks: model.groups.active.tasks.map((item) => item.task),
+    readyTasks: model.groups.ready.tasks.map((item) => item.task),
+    blockedTasks: model.groups.blocked.tasks.map((item) => item.task),
+    recentlyCompleted: model.groups.complete.tasks
+      .map((item) => item.task)
+      .filter((task) => task.completed_at),
   };
 }
 

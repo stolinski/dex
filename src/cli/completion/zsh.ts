@@ -10,6 +10,8 @@ _dex() {
     commands=(
         'init:Create config file'
         'config:Get or set config values'
+        'status:Show dashboard overview'
+        'tui:Open live read-only dashboard'
         'create:Create a new task'
         'list:List tasks'
         'ls:List tasks (alias)'

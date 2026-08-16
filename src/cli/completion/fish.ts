@@ -45,6 +45,8 @@ end
 # Main commands
 complete -c dex -n __dex_needs_command -a "init" -d "Create config file"
 complete -c dex -n __dex_needs_command -a "config" -d "Get or set config values"
+complete -c dex -n __dex_needs_command -a "status" -d "Show dashboard overview"
+complete -c dex -n __dex_needs_command -a "tui" -d "Open live read-only dashboard"
 complete -c dex -n __dex_needs_command -a "create" -d "Create a new task"
 complete -c dex -n __dex_needs_command -a "list" -d "List tasks"
 complete -c dex -n __dex_needs_command -a "ls" -d "List tasks (alias)"
