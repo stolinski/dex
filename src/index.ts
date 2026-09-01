@@ -93,7 +93,7 @@ DESCRIPTION:
 
 KEYS:
   j/k, arrows    Move between groups and tasks
-  left/right     Collapse or expand a group
+  left/right     Collapse or expand a group or epic
   enter          Open a task or toggle a group
   escape         Return from task details
   r              Reload

@@ -15,7 +15,7 @@ ${colors.bold}COMMANDS:${colors.reset}
   dir --global                     Print global dex config directory
   mcp                              Start MCP server (stdio)
   status                           Show dashboard overview (default)
-  tui                              Open live read-only task dashboard
+  tui                              Open live status and epic dashboard
   create "name" [--description "..."]  Create task
   add                                   Alias for create command
   list, ls                         List all pending tasks (tree view)

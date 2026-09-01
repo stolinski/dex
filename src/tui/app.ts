@@ -24,6 +24,7 @@ import {
   type DashboardTask,
 } from "../core/dashboard-model.js";
 import { TaskWatchController } from "./task-watch.js";
+import { buildTaskListRows, type TaskListRow } from "./task-list-model.js";
 
 const GROUP_ORDER: DashboardGroupId[] = [
   "active",
@@ -38,18 +39,10 @@ const COLORS = {
   selected: "#263445",
 };
 
-type ViewRow =
-  | { key: string; type: "group"; groupId: DashboardGroupId }
-  | {
-      key: string;
-      type: "task";
-      groupId: DashboardGroupId;
-      item: DashboardTask;
-    };
-
 interface TuiState {
   model: DashboardModel;
   collapsed: Set<DashboardGroupId>;
+  collapsedEpicKeys: Set<string>;
   selectedKey: string;
   detailTaskId: string | null;
   detailScroll: number;
@@ -58,22 +51,11 @@ interface TuiState {
   updatedAt: Date | null;
 }
 
-function flattenRows(state: TuiState): ViewRow[] {
-  const rows: ViewRow[] = [];
-  for (const groupId of GROUP_ORDER) {
-    rows.push({ key: `group:${groupId}`, type: "group", groupId });
-    if (!state.collapsed.has(groupId)) {
-      for (const item of state.model.groups[groupId].tasks) {
-        rows.push({
-          key: `task:${item.task.id}`,
-          type: "task",
-          groupId,
-          item,
-        });
-      }
-    }
-  }
-  return rows;
+function rowsFor(state: TuiState): TaskListRow[] {
+  return buildTaskListRows(state.model, {
+    collapsedGroups: state.collapsed,
+    collapsedEpicKeys: state.collapsedEpicKeys,
+  });
 }
 
 function truncate(value: string, width: number): string {
@@ -123,7 +105,7 @@ function taskReason(item: DashboardTask): string {
 }
 
 function listContent(state: TuiState, width: number): StyledText {
-  const rows = flattenRows(state);
+  const rows = rowsFor(state);
   const chunks: TextChunk[] = [];
 
   for (const row of rows) {
@@ -140,20 +122,63 @@ function listContent(state: TuiState, width: number): StyledText {
       continue;
     }
 
+    if (row.type === "epic") {
+      const marker = row.hasChildren
+        ? state.collapsedEpicKeys.has(row.key)
+          ? "▸ "
+          : "▾ "
+        : "  ";
+      const lead = `${selected ? "›" : " "}   ${marker}`;
+      const symbol = "◇ ";
+      const idText = row.item.task.id;
+      const suffix = row.childCount ? ` (${row.childCount})` : "";
+      const fixedWidth = stringWidth(lead + symbol + idText + " " + suffix);
+      const name = truncate(
+        row.item.task.name,
+        Math.max(1, width - fixedWidth),
+      );
+      const line = `${lead}${symbol}${idText} ${name}${suffix}`;
+
+      if (selected) {
+        chunks.push(selectedChunk(truncate(line, width)));
+      } else {
+        chunks.push({ __isChunk: true, text: lead });
+        chunks.push(cyan(symbol));
+        chunks.push(brightBlack(idText));
+        chunks.push({ __isChunk: true, text: " " });
+        chunks.push(bold(name));
+        if (suffix) chunks.push(dim(suffix));
+      }
+      chunks.push({ __isChunk: true, text: "\n" });
+      continue;
+    }
+
     const status = taskStatus(row.groupId);
     const reason = taskReason(row.item);
-    const prefix = `${selected ? "›" : " "}   ${status.symbol} p${row.item.task.priority} `;
-    const suffix = reason ? ` · ${reason}` : "";
-    const nameWidth = Math.max(
-      1,
-      width - stringWidth(prefix) - stringWidth(suffix),
-    );
-    const line = `${prefix}${truncate(row.item.task.name, nameWidth)}${suffix}`;
+    const lead = row.epicKey
+      ? `${selected ? "›" : " "}     ${row.treePrefix}`
+      : `${selected ? "›" : " "}   `;
+    const statusText = `${status.symbol} `;
+    const idText = row.item.task.id;
+    const priorityText = ` p${row.item.task.priority} `;
+    const fixedWidth = stringWidth(lead + statusText + idText + priorityText);
+    const reasonSuffix = reason ? ` · ${reason}` : "";
+    const suffix =
+      reasonSuffix && width - fixedWidth - stringWidth(reasonSuffix) >= 8
+        ? reasonSuffix
+        : "";
+    const nameWidth = Math.max(1, width - fixedWidth - stringWidth(suffix));
+    const name = truncate(row.item.task.name, nameWidth);
+    const line = `${lead}${statusText}${idText}${priorityText}${name}${suffix}`;
+
     if (selected) {
       chunks.push(selectedChunk(truncate(line, width)));
     } else {
-      chunks.push({ __isChunk: true, text: prefix.slice(0, -1) });
-      chunks.push(status.style(` ${truncate(row.item.task.name, nameWidth)}`));
+      chunks.push({ __isChunk: true, text: lead });
+      chunks.push(status.style(statusText));
+      chunks.push(brightBlack(idText));
+      chunks.push(dim(priorityText));
+      chunks.push(status.style(name));
       if (suffix) chunks.push(dim(suffix));
     }
     chunks.push({ __isChunk: true, text: "\n" });
@@ -301,6 +326,7 @@ export async function runTui(storagePath: string): Promise<void> {
   const state: TuiState = {
     model: buildDashboardModel([]),
     collapsed: new Set<DashboardGroupId>(["complete"]),
+    collapsedEpicKeys: new Set<string>(),
     selectedKey: "group:active",
     detailTaskId: null,
     detailScroll: 0,
@@ -353,7 +379,7 @@ export async function runTui(storagePath: string): Promise<void> {
       return;
     }
 
-    const rows = flattenRows(state);
+    const rows = rowsFor(state);
     if (!rows.some((row) => row.key === state.selectedKey)) {
       state.selectedKey = rows[0]?.key ?? "group:active";
     }
@@ -376,7 +402,7 @@ export async function runTui(storagePath: string): Promise<void> {
   }
 
   function moveSelection(delta: number): void {
-    const rows = flattenRows(state);
+    const rows = rowsFor(state);
     if (!rows.length) return;
     const current = Math.max(
       0,
@@ -387,17 +413,35 @@ export async function runTui(storagePath: string): Promise<void> {
     render();
   }
 
-  function selectedRow(): ViewRow | undefined {
-    return flattenRows(state).find((row) => row.key === state.selectedKey);
+  function selectedRow(): TaskListRow | undefined {
+    return rowsFor(state).find((row) => row.key === state.selectedKey);
   }
 
-  function setGroupCollapsed(collapsed: boolean): void {
+  function setRowCollapsed(collapsed: boolean): void {
     const row = selectedRow();
     if (!row) return;
-    if (collapsed) state.collapsed.add(row.groupId);
-    else state.collapsed.delete(row.groupId);
-    if (collapsed && row.type === "task") {
-      state.selectedKey = `group:${row.groupId}`;
+
+    if (row.type === "group") {
+      if (collapsed) state.collapsed.add(row.groupId);
+      else state.collapsed.delete(row.groupId);
+    } else if (row.type === "epic") {
+      if (!row.hasChildren) return;
+      if (collapsed) state.collapsedEpicKeys.add(row.key);
+      else state.collapsedEpicKeys.delete(row.key);
+    } else if (row.epicKey) {
+      if (collapsed) {
+        state.collapsedEpicKeys.add(row.epicKey);
+        state.selectedKey = row.epicKey;
+      } else {
+        state.collapsedEpicKeys.delete(row.epicKey);
+      }
+    } else {
+      if (collapsed) {
+        state.collapsed.add(row.groupId);
+        state.selectedKey = `group:${row.groupId}`;
+      } else {
+        state.collapsed.delete(row.groupId);
+      }
     }
     render();
   }
@@ -472,10 +516,10 @@ export async function runTui(storagePath: string): Promise<void> {
         moveSelection(-1);
         break;
       case "left":
-        setGroupCollapsed(true);
+        setRowCollapsed(true);
         break;
       case "right":
-        setGroupCollapsed(false);
+        setRowCollapsed(false);
         break;
       case "return":
         openSelected();
